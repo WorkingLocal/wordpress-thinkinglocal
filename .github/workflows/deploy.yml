@@ -1,0 +1,27 @@
+name: Deploy Thinking Local naar Coolify VPS
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: SSH Deploy naar Coolify VPS
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker exec ${{ secrets.WP_CONTAINER }} bash -c "
+              cd /var/www/html &&
+              git pull origin master &&
+              wp cache flush --allow-root 2>/dev/null || true &&
+              wp elementor flush-css --allow-root 2>/dev/null || true
+            "
+            echo "Deploy voltooid op $(date)"

@@ -1,0 +1,43 @@
+services:
+  wordpress:
+    image: wordpress:latest
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_TABLE_PREFIX: ${WP_TABLE_PREFIX:-wp_}
+    volumes:
+      - wordpress_data:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        echo 'upload_max_filesize = 512M' > /usr/local/etc/php/conf.d/uploads.ini &&
+        echo 'post_max_size = 512M' >> /usr/local/etc/php/conf.d/uploads.ini &&
+        echo 'memory_limit = 256M' >> /usr/local/etc/php/conf.d/uploads.ini &&
+        echo 'max_execution_time = 300' >> /usr/local/etc/php/conf.d/uploads.ini &&
+        echo 'max_input_time = 300' >> /usr/local/etc/php/conf.d/uploads.ini &&
+        exec docker-entrypoint.sh apache2-foreground"
+
+  db:
+    image: mariadb:lts
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  wordpress_data:
+  db_data:

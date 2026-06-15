@@ -1,14 +1,14 @@
 # Thinking Local — Persoonlijk merk & portfolio
 
-**URL:** https://thinkinglocal.be (in opbouw) | https://wordpress.thinkinglocal.be (VPS — ontwikkelomgeving)
+**URL:** https://thinkinglocal.be (in opbouw — Hostinger) | https://wordpress.thinkinglocal.be (VPS — optionele dev/staging)
 
-Thinking Local is een persoonlijk platform voor projecten, experimenten en inzichten — van homelab en AI tot BI en strategische reflecties. Deze repo bevat de WordPress-website en de volledige infrastructuurconfiguratie om die website te draaien op de eigen VPS.
+Thinking Local is een persoonlijk platform voor projecten, experimenten en inzichten — van homelab en AI tot BI en strategische reflecties. Deze repo bevat de WordPress-website en de volledige infrastructuurconfiguratie.
 
 ---
 
 ## Hoe is de website technisch opgebouwd?
 
-De website draait op **WordPress** met **Elementor** als page builder, via **Coolify** op VPS-WORKINGLOCAL.
+De productiesite draait op **WordPress via Hostinger** (hPanel, beheerd hosting). Optioneel: VPS-versie via **Coolify** voor dev/staging, zelfde patroon als `wordpress.workinglocal.be`.
 
 ---
 

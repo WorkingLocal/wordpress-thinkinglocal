@@ -1,6 +1,6 @@
 # Technisch herinrichtingshandboek — WordPress Thinking Local
 
-Dit document is het complete handboek om de Thinking Local WordPress-site van nul te heropbouwen op een nieuwe machine, of om de bestaande omgeving te beheren.
+Dit document is het complete handboek om de Thinking Local WordPress-site op te zetten of te herbouwen.
 
 ---
 
@@ -8,92 +8,105 @@ Dit document is het complete handboek om de Thinking Local WordPress-site van nu
 
 | Parameter | Waarde |
 |---|---|
-| **Productiesite** | https://thinkinglocal.be |
-| **VPS-site** | https://wordpress.thinkinglocal.be |
+| **Productiesite** | https://thinkinglocal.be (Hostinger) |
+| **VPS-site** | https://wordpress.thinkinglocal.be (optioneel — dev/staging) |
 | **VPS IP** | `23.94.220.181` |
 | **WordPress versie** | Meest recente |
 | **Page builder** | Elementor |
-| **Database** | MariaDB LTS |
+| **Database** | MariaDB (Hostinger beheerd) |
+
+### Architectuur — productie
+
+```
+Internet → Cloudflare DNS
+    A-record: thinkinglocal.be → Hostinger server IP
+    Proxy: UIT (grijs wolkje)
+  → Hostinger hPanel → WordPress installatie
+```
 
 ---
 
-## 2. Stap 1: Cloudflare instellen
+## 2. Stap 1: Domein toevoegen op Hostinger
 
-`thinkinglocal.be` moet eerst als zone worden toegevoegd aan Cloudflare (domein is geregistreerd maar nameservers nog niet overgezet).
+1. Log in op [hpanel.hostinger.com](https://hpanel.hostinger.com)
+2. **Websites → Add website** of voeg toe als addon-domein aan bestaand plan
+3. Voer `thinkinglocal.be` in
+4. Noteer het **Hostinger server IP** (staat in hPanel → DNS Zone of Email Setup)
 
-### 2a. Zone toevoegen in Cloudflare
-1. Ga naar [dash.cloudflare.com](https://dash.cloudflare.com) → **Add a Site**
-2. Voer `thinkinglocal.be` in → kies **Free plan**
-3. Cloudflare scant bestaande DNS-records
-4. Noteer de twee Cloudflare nameservers (bv. `ada.ns.cloudflare.com`)
+---
 
-### 2b. Nameservers updaten bij registrar
-Ga naar je domeinregistrar (waar thinkinglocal.be geregistreerd staat) en vervang de nameservers door die van Cloudflare.
-Propagatie duurt 0–24 uur (meestal <1 uur).
+## 3. Stap 2: Cloudflare instellen
 
-### 2c. A-records toevoegen in Cloudflare
+`thinkinglocal.be` is geregistreerd maar nog niet in Cloudflare. Eerst nameservers overzetten, dan DNS toevoegen.
+
+### 3a. Zone toevoegen
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Add a Site** → `thinkinglocal.be` → Free plan
+2. Noteer de twee Cloudflare nameservers
+
+### 3b. Nameservers updaten bij registrar
+Vervang de nameservers bij de registrar (Easyhost of andere) door de Cloudflare nameservers.
+Propagatie: 0–24 uur (meestal < 1 uur).
+
+### 3c. A-records toevoegen in Cloudflare
+
 ```
 Type:  A
 Name:  @
-Value: 23.94.220.181
+Value: [Hostinger server IP]
 Proxy: UIT (grijs wolkje)
 
 Type:  A
 Name:  www
-Value: 23.94.220.181
-Proxy: UIT (grijs wolkje)
-
-Type:  A
-Name:  wordpress
-Value: 23.94.220.181
+Value: [Hostinger server IP]
 Proxy: UIT (grijs wolkje)
 ```
 
-> Cloudflare proxy UIT houden zodat Let's Encrypt SSL-certificaat correct aangevraagd kan worden.
+> Proxy UIT zodat Let's Encrypt of Hostinger SSL correct werkt.
 
 ---
 
-## 3. Stap 2: Deployment via Coolify
+## 4. Stap 3: WordPress installeren op Hostinger
 
-1. SSH naar VPS: `ssh root@23.94.220.181`
-2. In Coolify dashboard: **New Resource → Docker Compose**
-3. Plak de inhoud van `docker-compose.yml`
-4. Stel de environment variables in:
+In hPanel van het Thinking Local domein:
+1. **WordPress → Install**
+2. Site title: `Thinking Local`
+3. Admin URL: `https://thinkinglocal.be/wp-admin`
+
+---
+
+## 5. Stap 4: GitHub Actions deploy (voor VPS dev — optioneel)
+
+Als je ook een VPS-versie wil (zoals `wordpress.workinglocal.be` voor Working Local):
+
+### Coolify op VPS
+
+1. In Coolify: **New Resource → Docker Compose**
+2. Plak de inhoud van `docker-compose.yml`
+3. Environment variables:
    - `DB_NAME` — `thinkinglocal_wp`
    - `DB_USER` — `thinkinglocal`
-   - `DB_PASSWORD` — genereer: `openssl rand -base64 32`
-   - `DB_ROOT_PASSWORD` — genereer: `openssl rand -base64 32`
-5. Domein instellen: `https://wordpress.thinkinglocal.be`
-6. Deploy → Coolify vraagt automatisch SSL-certificaat via Let's Encrypt
+   - `DB_PASSWORD` — `openssl rand -base64 32`
+   - `DB_ROOT_PASSWORD` — `openssl rand -base64 32`
+4. Domein: `https://wordpress.thinkinglocal.be`
+5. Deploy
 
----
-
-## 4. Stap 3: WordPress basisinstallatie
-
-Na de eerste deploy opent WordPress de installatiewizard:
-- Site title: `Thinking Local`
-- Admin URL: `https://wordpress.thinkinglocal.be/wp-admin`
-
----
-
-## 5. Stap 4: GitHub Actions deploy instellen
-
-In de GitHub repo `wordpress-thinkinglocal` → **Settings → Secrets and variables → Actions**:
+### GitHub Secrets (voor auto-deploy naar VPS)
 
 | Secret | Waarde |
 |---|---|
 | `SSH_HOST` | `23.94.220.181` |
-| `SSH_USER` | SSH gebruiker op de VPS |
-| `SSH_PRIVATE_KEY` | Private SSH key (zelfde als andere WP-repos) |
-| `WP_CONTAINER` | Container naam uit Coolify (zie Coolify dashboard) |
+| `SSH_USER` | `root` |
+| `SSH_PRIVATE_KEY` | Private SSH key |
+| `WP_CONTAINER` | Container naam uit Coolify |
 
 ---
 
 ## 6. Huisstijl
 
-Thinking Local kleurenpalet: nader te bepalen via `design-allthingslocal/brands/thinking-local/tokens.css`
+Tokens en kleuren: `design-allthingslocal/brands/thinking-local/tokens.css`
+(In opbouw — wordt ingevuld na Claude design sessie)
 
-Huisstijl-CSS injecteren via WP-CLI:
+CSS injecteren via WP-CLI (VPS) of via WordPress Additional CSS (Hostinger):
 ```bash
 docker exec <container> wp css update --allow-root --css="<css-code>"
 ```

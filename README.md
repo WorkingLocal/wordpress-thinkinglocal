@@ -1,14 +1,30 @@
-# Thinking Local — Persoonlijk merk & portfolio
+# Thinking Local — Website
 
-**URL:** https://thinkinglocal.be (in opbouw — Hostinger) | https://wordpress.thinkinglocal.be (VPS — optionele dev/staging)
+**URL:** https://thinkinglocal.be (in opbouw — VPS via Coolify)
 
-Thinking Local is een persoonlijk platform voor projecten, experimenten en inzichten — van homelab en AI tot BI en strategische reflecties. Deze repo bevat de WordPress-website en de volledige infrastructuurconfiguratie.
+Thinking Local is het BA-consultancy & platform-merk: strategisch denken, technologie en business analyse, gebundeld in het zelfgehoste AutoBA-platform en toegepast in actieve klantprojecten (zoals BMS Digital Foundations). Deze repo bevat de WordPress-website en de volledige infrastructuurconfiguratie om die website te draaien op de eigen VPS.
+
+---
+
+## Wat staat er op deze website?
+
+De website is het centrale communicatiepunt van Thinking Local. Bezoekers vinden er uitleg over het AutoBA-platform, de aanpak, klantcases en een contactmogelijkheid.
+
+### Inhoud (zie `design-allthingslocal/brands/thinking-local/content.md` voor de volledige briefing)
+
+| Pagina | Wat het is |
+|---|---|
+| Platform (AutoBA) | Het BA-platform — kernproduct |
+| AI Agent | RAG-gebaseerde AI-ondersteuning |
+| BMS Portal | Klantspecifiek Power BI service-portaal |
+| Klantcases | BMS Digital Foundations en toekomstige cases |
+| Diensten | Consulting / BI |
 
 ---
 
 ## Hoe is de website technisch opgebouwd?
 
-De productiesite draait op **WordPress via Hostinger** (hPanel, beheerd hosting). Optioneel: VPS-versie via **Coolify** voor dev/staging, zelfde patroon als `wordpress.workinglocal.be`.
+De website draait op **WordPress** met **Elementor** als page builder, via **Coolify** op de eigen VPS — zelfde patroon als `wordpress.workinglocal.be` en `wordpress.hostinglocal.be`.
 
 ---
 
@@ -32,16 +48,18 @@ git push origin master
 
 | Platform | Domein | Rol |
 |---|---|---|
-| **AutoBA** | autoba.thinkinglocal.be | AI-gestuurde projectopvolging |
-| **Gitea** | gitea.thinkinglocal.be | Self-hosted git repositories |
-| **BookStack** | docs.thinkinglocal.be | Kennisbank en documentatie |
+| **AutoBA** | autoba.thinkinglocal.be | BA-platform — kernproduct |
+| **AutoBA Agent** | autoba-agent.thinkinglocal.be | AI-ondersteuning (RAG) |
+| **BMS Portal** | bms.thinkinglocal.be | Klantspecifiek Power BI service-portaal (BMS Digital Foundations) |
 
 ---
 
 ## Huisstijl
 
-Volledige huisstijldocumentatie, logo's en tokens: zie repo `design-allthingslocal` → `brands/thinking-local/`
+Volledige huisstijldocumentatie, logo's en tokens: zie repo `WorkingLocal/design-allthingslocal` → `brands/thinking-local/`
 Lokale samenvatting: `docs/design-system.md`
+
+Kleuren: `#1A2E5A` (marineblauw) + `#F5B800` (geel) — gedeeld over alle Local-initiatieven.
 
 ---
 
@@ -55,6 +73,8 @@ wordpress-thinkinglocal/
 │   └── workflows/
 │       └── deploy.yml              # Automatische SSH-deploy bij push naar master
 └── docs/
+    ├── current-state.md            # Huidige staat van domein/hosting (inventaris)
+    ├── design-system.md            # Verwijzing naar centrale huisstijl-repo
     ├── technisch.md                # Volledig herinrichtingshandboek
     └── howto.md                    # Veelgebruikte handelingen stap voor stap
 ```
@@ -64,7 +84,7 @@ wordpress-thinkinglocal/
 ## Infrastructuur in één oogopslag
 
 ```
-Internet → Cloudflare DNS (proxy UIT) → VPS 23.94.220.181
+Internet → Cloudflare DNS (zone actief, proxy UIT voor wordpress.thinkinglocal.be) → VPS
   → Coolify (Traefik/Caddy) met automatisch SSL
     → Docker: wordpress container (Apache + PHP 8.x)
       → Docker: db container (MariaDB LTS)
@@ -73,3 +93,4 @@ Internet → Cloudflare DNS (proxy UIT) → VPS 23.94.220.181
 ```
 
 Voor het volledige herinrichtingsplan, zie [docs/technisch.md](docs/technisch.md).
+Voor de huidige staat (wat al klaar is, wat nog moet), zie [docs/current-state.md](docs/current-state.md).

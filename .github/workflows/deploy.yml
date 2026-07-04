@@ -1,27 +1,39 @@
-name: Deploy Thinking Local naar Coolify VPS
+name: Deploy Thinking Local naar VM-WORDPRESS
 
 on:
   push:
     branches:
       - master
+    paths:
+      - 'wp-content/**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: SSH Deploy naar Coolify VPS
+    name: SCP deploy naar CloudPanel
 
     steps:
-      - name: Deploy via SSH
+      - uses: actions/checkout@v4
+
+      - name: Deploy mu-plugin via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "wp-content/mu-plugins/thinking-local.php"
+          target: "${{ secrets.WP_PATH }}"
+          strip_components: 0
+
+      - name: Cache flush via WP-CLI
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            docker exec ${{ secrets.WP_CONTAINER }} bash -c "
-              cd /var/www/html &&
-              git pull origin master &&
-              wp cache flush --allow-root 2>/dev/null || true &&
-              wp elementor flush-css --allow-root 2>/dev/null || true
-            "
+            sudo chown ${{ secrets.WP_SITE_USER }}:${{ secrets.WP_SITE_USER }} \
+              ${{ secrets.WP_PATH }}/wp-content/mu-plugins/thinking-local.php
+            sudo -u ${{ secrets.WP_SITE_USER }} wp \
+              --path=${{ secrets.WP_PATH }} cache flush 2>/dev/null || true
             echo "Deploy voltooid op $(date)"

@@ -72,6 +72,9 @@ wordpress-thinkinglocal/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml              # Automatische SSH-deploy bij push naar master
+├── wp-content/
+│   └── mu-plugins/
+│       └── thinking-local.php      # Huisstijl: SVG-logo (placeholder), CSS tokens, JS scroll
 └── docs/
     ├── current-state.md            # Huidige staat van domein/hosting (inventaris)
     ├── design-system.md            # Verwijzing naar centrale huisstijl-repo

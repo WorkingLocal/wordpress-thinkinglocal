@@ -1,6 +1,6 @@
 # Technisch herinrichtingshandboek — WordPress Thinking Local
 
-Dit document is het complete handboek om de Thinking Local WordPress-site van nul op te zetten of te herbouwen op de eigen VPS.
+Dit document is het complete handboek om de Thinking Local WordPress-site op te zetten via CloudPanel op VM-WORDPRESS.
 
 ---
 
@@ -8,80 +8,125 @@ Dit document is het complete handboek om de Thinking Local WordPress-site van nu
 
 | Parameter | Waarde |
 |---|---|
+| **VM** | VM-WORDPRESS — 192.168.111.65 / 100.120.60.58 (Tailscale) |
+| **SSH** | `ssh ubuntu@100.120.60.58` of via jump: `ssh -J root@100.81.170.58 ubuntu@192.168.111.65` |
+| **CloudPanel admin** | https://100.120.60.58:8443 |
+| **Stack** | CloudPanel CE — Nginx + Percona 8.4 + PHP-FPM per vhost |
 | **Productiesite** | https://thinkinglocal.be |
-| **VPS-site** | https://wordpress.thinkinglocal.be |
-| **VPS IP** | `23.94.220.181` (zelfde VPS als workinglocal/hostinglocal) |
-| **WordPress versie** | Meest recente |
-| **Page builder** | Elementor |
-| **Database** | MariaDB LTS (eigen container) |
+| **Cloudflare zone** | ✅ Actief — Cloudflare nameservers live, root A-record ⏳ |
+| **Cloudflare tunnel** | vm-wordpress-tunnel (CF Zero Trust — token vereist) |
 
-### Architectuur
+---
 
+## 2. Site aanmaken via CloudPanel CLI
+
+```bash
+# SSH naar VM-WORDPRESS
+ssh ubuntu@100.120.60.58
+
+# Site aanmaken (PHP 8.3 + WordPress template)
+sudo clpctl site:add:php \
+  --domainName=thinkinglocal.be \
+  --phpVersion=8.3 \
+  --vhostTemplate=WordPress \
+  --siteUser=tl-admin \
+  --siteUserPassword=$(openssl rand -base64 16)
+
+# WordPress installeren (sla admin-wachtwoord op in Vaultwarden)
+sudo clpctl wp:install \
+  --domainName=thinkinglocal.be \
+  --title="Thinking Local" \
+  --adminUser=tl-admin \
+  --adminPassword=$(openssl rand -base64 16) \
+  --adminEmail=thomas@thinkinglocal.be \
+  --locale=nl_NL
 ```
-Internet → Cloudflare DNS (zone reeds actief op thinkinglocal.be)
-    A-record: wordpress.thinkinglocal.be → 23.94.220.181
-    Proxy: UIT (grijs wolkje)
-  → Coolify (Traefik/Caddy) → Docker: wordpress + db container
+
+> Credentials (siteUser + WP admin) direct in Vaultwarden opslaan onder "VM-WORDPRESS / WordPress Sites".
+
+---
+
+## 3. Mu-plugin deployen
+
+De mu-plugin staat in deze repo onder `wp-content/mu-plugins/thinking-local.php`. Kopieer naar de server:
+
+```bash
+# Vanop laptop
+scp wp-content/mu-plugins/thinking-local.php \
+  ubuntu@100.120.60.58:/tmp/thinking-local.php
+
+# Op de server
+sudo cp /tmp/thinking-local.php \
+  /home/tl-admin/htdocs/thinkinglocal.be/wp-content/mu-plugins/thinking-local.php
+sudo chown tl-admin:tl-admin \
+  /home/tl-admin/htdocs/thinkinglocal.be/wp-content/mu-plugins/thinking-local.php
 ```
 
-> De Cloudflare-zone voor thinkinglocal.be staat al actief (nameservers + root A-record wijzen al naar Cloudflare, gebruikt door de bestaande autoba/bms-subdomeinen). Er is alleen nog geen origin gekoppeld voor de website zelf — vandaar de 521-fout op het root-domein tot deze site live staat.
+---
+
+## 4. Kadence thema installeren
+
+```bash
+# Op de server (als site-user)
+sudo -u tl-admin bash
+
+wp --path=/home/tl-admin/htdocs/thinkinglocal.be \
+  theme install kadence --activate
+
+wp --path=/home/tl-admin/htdocs/thinkinglocal.be \
+  plugin install kadence-blocks --activate
+
+exit
+```
 
 ---
 
-## 2. Deployment via Coolify
+## 5. DNS instellen (Cloudflare)
 
-1. In Coolify: **New Resource → Docker Compose**
-2. Plak de inhoud van `docker-compose.yml`
-3. Stel de environment variables in:
-   - `DB_NAME` — `thinkinglocal_wp`
-   - `DB_USER` — `thinkinglocal`
-   - `DB_PASSWORD` — genereer: `openssl rand -base64 32`
-   - `DB_ROOT_PASSWORD` — genereer: `openssl rand -base64 32`
-4. Domein instellen: `https://wordpress.thinkinglocal.be`
-5. Deploy
-
----
-
-## 3. WordPress basisinstallatie
-
-Na de eerste deploy opent WordPress de installatiewizard:
-- Site title: `Thinking Local`
-- Admin URL: `https://wordpress.thinkinglocal.be/wp-admin`
-
----
-
-## 4. DNS instellen (Cloudflare)
+De Cloudflare zone voor thinkinglocal.be is al actief. Wijzig het root A-record zodra de site klaar is:
 
 ```
 Type:  A
-Name:  wordpress
-Value: 23.94.220.181
-Proxy: UIT (grijs wolkje)
+Name:  @
+Value: <publiek IP> of CF Tunnel CNAME
+Proxy: AAN (oranje wolkje)
 ```
 
-> Cloudflare proxy UIT houden zodat Let's Encrypt SSL-certificaat correct aangevraagd kan worden.
-
-Wanneer de site klaar is voor productie, het root-domein (`@`) ook naar de VPS wijzen (zelfde A-record patroon), of via een Cloudflare Page Rule/redirect naar `wordpress.thinkinglocal.be` totdat een definitieve keuze gemaakt is.
+Tijdelijk testen via hosts file:
+```
+100.120.60.58   thinkinglocal.be
+```
 
 ---
 
-## 5. GitHub Actions deploy
+## 6. GitHub Actions deploy
 
-In de GitHub repo secrets instellen:
-- `SSH_HOST` — VPS IP (`23.94.220.181`)
-- `SSH_USER` — SSH gebruiker op de VPS
-- `SSH_PRIVATE_KEY` — private SSH key
-- `WP_CONTAINER` — naam van de WordPress Docker container in Coolify
+Deploy-workflow in `.github/workflows/deploy.yml` kopieert gewijzigde bestanden via SCP:
+
+```yaml
+# In GitHub repo secrets instellen:
+# SSH_HOST     = 100.120.60.58
+# SSH_USER     = ubuntu
+# SSH_PRIVATE_KEY = <private key>
+# WP_PATH      = /home/tl-admin/htdocs/thinkinglocal.be
+```
 
 ---
 
-## 6. Huisstijl
+## 7. Logo — placeholder vervangen
 
-Thinking Local kleurenpalet: gedeeld basispalet — marineblauw (`#1A2E5A`) + geel (`#F5B800`), reeds live op het AutoBA-platform en BMS Portal. Een eigen onderscheidende accentkleur is nog een open vraag voor de design-sessie.
+Het huidige logo in `thinking-local.php` is een SVG-placeholder (bar chart). Zodra het definitieve logo ontworpen is in `design-allthingslocal/brands/thinking-local/assets/`:
 
-Huisstijl-CSS injecteren via WP-CLI:
-```bash
-docker exec <container> wp css update --allow-root --css="<css-code>"
-```
+1. SVG exporteren naar `assets/logo-thinking-local.svg`
+2. `tl_svg_logo()` in `wp-content/mu-plugins/thinking-local.php` vervangen
+3. Deployen via SCP (zie stap 3)
 
-Volledige tokens: zie `design-allthingslocal/brands/thinking-local/tokens.css`.
+---
+
+## 8. Huisstijl
+
+Thinking Local kleurenpalet (tijdelijk gedeeld basispalet): marineblauw (`#1A2E5A`) + geel (`#F5B800`).
+
+De mu-plugin `wp-content/mu-plugins/thinking-local.php` injecteert automatisch alle CSS, het SVG-logo (placeholder) en de JS-verbeteringen.
+
+Eigen accent-kleur wordt bepaald tijdens de design-sessie. Volledige tokens: zie `design-allthingslocal/brands/thinking-local/tokens.css`.
